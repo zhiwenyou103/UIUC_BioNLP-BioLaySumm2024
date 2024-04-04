@@ -97,11 +97,11 @@ conclusions = [item.lower() for item in conclusions]
 
 
 # LED
-tokenizer = AutoTokenizer.from_pretrained("/ocean/projects/cis230089p/zyou2/BioNLP/4k_led_base_extract_not_clean_0401/checkpoint-250/")
-model = LEDForConditionalGeneration.from_pretrained("/ocean/projects/cis230089p/zyou2/BioNLP/4k_led_base_extract_not_clean_0401/checkpoint-250/").to(device)
+tokenizer = AutoTokenizer.from_pretrained("/ocean/projects/cis230089p/zyou2/BioNLP/8k_led_base/checkpoint-250/")
+model = LEDForConditionalGeneration.from_pretrained("/ocean/projects/cis230089p/zyou2/BioNLP/8k_led_base/checkpoint-250/").to(device)
 
 def generate_sum(batch):
-    inputs_dict = tokenizer(batch["article"], padding="max_length", max_length=4096, return_tensors="pt", truncation=True)
+    inputs_dict = tokenizer(batch["article"], padding="max_length", max_length=8192, return_tensors="pt", truncation=True)
     input_ids = inputs_dict.input_ids.to(device)
     attention_mask = inputs_dict.attention_mask.to(device)
     global_attention_mask = torch.zeros_like(attention_mask)
@@ -189,53 +189,55 @@ elife_article_val, elife_lay_sum_val, elife_keyword_val, elife_headings_val, eli
 
 
 ### using extractive sum
-new_elife_article_val = []
-new_elife_lay_sum_val = []
+# new_elife_article_val = []
+# new_elife_lay_sum_val = []
 
-with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_val_new.json', 'r') as file:
-    new_elife_article_val = json.load(file)
+# with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_val_new.json', 'r') as file:
+#     new_elife_article_val = json.load(file)
 
-sub_elife_article_val = []
-for text in new_elife_article_val:
-    # result = re.sub(pattern, '', text)
-    result = text.replace(' , ', ', ')
-    sub_elife_article_val.append(result)
-# val
-elife_val_dataset = {'article': sub_elife_article_val, 'abstract': elife_lay_sum_val}
-elife_val_dataset = Dataset.from_dict(elife_val_dataset)
+# sub_elife_article_val = []
+# for text in new_elife_article_val:
+#     # result = re.sub(pattern, '', text)
+#     result = text.replace(' , ', ', ')
+#     sub_elife_article_val.append(result)
+# # val
+# elife_val_dataset = {'article': sub_elife_article_val, 'abstract': elife_lay_sum_val}
+# elife_val_dataset = Dataset.from_dict(elife_val_dataset)
 
 
 ### 8k input
-# section_order = {
-#     'abstract': ['abstract'],
-#     'background': background,
-#     'conclusions': conclusions,
-#     'results': results,
-#     'methods': methods
-# }
+section_order = {
+    'abstract': ['abstract'],
+    'background': background,
+    'conclusions': conclusions,
+    'results': results,
+    'methods': methods
+}
 
-# new_elife_article_val = []
-# new_elife_lay_sum_val = []
-# for lay, article, headings in zip(elife_lay_sum_val, elife_article_val, elife_headings_val):
-#     sections = article.split('\n')
-#     temp_sections = []
-#     sections_dict = {section: '' for section in section_order}
-#     for heading, section in zip(headings, sections):
-#         heading = heading.lower()
-#         for section_name, potential_headings in section_order.items():
-#             if any(potential_heading in heading for potential_heading in potential_headings):
-#                 sections_dict[section_name] += section + '\n'  # Append section content to the corresponding section in the dictionary
-#                 break
-#     for section_name in section_order:
-#         temp_sections.append(sections_dict[section_name])
+new_elife_article_val = []
+new_elife_lay_sum_val = []
+for lay, article, headings in zip(elife_lay_sum_val, elife_article_val, elife_headings_val):
+    sections = article.split('\n')
+    temp_sections = []
+    sections_dict = {section: '' for section in section_order}
+    for heading, section in zip(headings, sections):
+        heading = heading.lower()
+        for i, (section_name, potential_headings) in enumerate(section_order.items()):
+            if any(potential_heading in heading for potential_heading in potential_headings):
+                sections_dict[section_name] += section  # Append section content to the corresponding section in the dictionary
+                break
+            elif i == len(section_order) - 1:
+                sections_dict[section_name] += section
+    for section_name in section_order:
+        temp_sections.append(sections_dict[section_name])
     
-#     final_string = '\n'.join(temp_sections)
-#     if final_string:
-#         new_elife_article_val.append(final_string)
-#         new_elife_lay_sum_val.append(lay)
+    final_string = ''.join(temp_sections)
+    if final_string:
+        new_elife_article_val.append(final_string)
+        new_elife_lay_sum_val.append(lay)
 
-# elife_val_dataset = {'article': new_elife_article_val, 'abstract': elife_lay_sum_val}
-# elife_val_dataset = Dataset.from_dict(elife_val_dataset)
+elife_val_dataset = {'article': new_elife_article_val, 'abstract': elife_lay_sum_val}
+elife_val_dataset = Dataset.from_dict(elife_val_dataset)
 ### end
 
 
@@ -273,12 +275,12 @@ print("length of train and val datasets")
 print(len(elife_val_dataset))
 
 
-result = elife_val_dataset.map(generate_sum, batched=True, batch_size=16)
+result = elife_val_dataset.map(generate_sum, batched=True, batch_size=4) #16
 print(result["predicted_abstract"][2])
 
 predicted_abstract = result["predicted_abstract"]
 
-with open('/jet/home/zyou2/BioLaySumm/elife_4k_led_base_no_clean_extract.txt', 'w') as file:
+with open('/jet/home/zyou2/BioLaySumm/elife_8k_led_base.txt', 'w') as file:
     for abstract in predicted_abstract:
         file.write(abstract + '\n')
         

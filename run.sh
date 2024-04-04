@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -N 1
-#SBATCH -p GPU-shared
-#SBATCH -t 06:00:00
+#SBATCH -p GPU-small
+#SBATCH -t 08:00:00
 #SBATCH --gpus=v100-32:1
 
 #type 'man sbatch' for more information and options

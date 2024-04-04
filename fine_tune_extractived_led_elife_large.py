@@ -26,8 +26,8 @@ tokenizer = AutoTokenizer.from_pretrained("allenai/led-base-16384")
 # large
 # tokenizer = AutoTokenizer.from_pretrained("patrickvonplaten/led-large-16384-pubmed")
 
-# 8192
-encoder_max_length = 4096
+# 8192 4096
+encoder_max_length = 8192
 decoder_max_length = 512
 batch_size = 4 # 1 for pubmed led large model and 8k input
 # pattern = r'(\(\s([^()]*\s\,\s)*[^()]*\s\))'
@@ -174,96 +174,102 @@ elife_article_val, elife_lay_sum_val, elife_keyword_val, elife_headings_val, eli
 # test
 # elife_article_test, elife_keyword_test, elife_headings_test, elife_id_test = load_test_data('eLife', 'test')
 
-new_elife_article_train = []
-new_elife_article_val = []
-with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_train_new.json', 'r') as file:
-    new_elife_article_train = json.load(file)
+### extractive summ
+# new_elife_article_train = []
+# new_elife_article_val = []
+# with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_train_new.json', 'r') as file:
+#     new_elife_article_train = json.load(file)
 
-with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_val_new.json', 'r') as file:
-    new_elife_article_val = json.load(file)
+# with open('/ocean/projects/cis230089p/zyou2/BioNLP/extract_aug_data/elife_val_new.json', 'r') as file:
+#     new_elife_article_val = json.load(file)
 
-print(len(new_elife_article_train))
-print(len(new_elife_article_val))
+# print(len(new_elife_article_train))
+# print(len(new_elife_article_val))
 
-### remove abstract and intro citations
-sub_elife_article_train = []
-for text in new_elife_article_train:
-    # result = re.sub(pattern, '', text)
-    result = text.replace(' , ', ', ')
-    sub_elife_article_train.append(result)
+# sub_elife_article_train = []
+# for text in new_elife_article_train:
+#     result = text.replace(' , ', ', ')
+#     sub_elife_article_train.append(result)
 
-sub_elife_article_val = []
-for text in new_elife_article_val:
-    # result = re.sub(pattern, '', text)
-    result = text.replace(' , ', ', ')
-    sub_elife_article_val.append(result)
+# sub_elife_article_val = []
+# for text in new_elife_article_val:
+#     result = text.replace(' , ', ', ')
+#     sub_elife_article_val.append(result)
 
-# train
-elife_train_dataset = {'article': sub_elife_article_train, 'abstract': elife_lay_sum_train}
-elife_train_dataset = Dataset.from_dict(elife_train_dataset)
+# # train
+# elife_train_dataset = {'article': sub_elife_article_train, 'abstract': elife_lay_sum_train}
+# elife_train_dataset = Dataset.from_dict(elife_train_dataset)
 
-# val
-elife_val_dataset = {'article': sub_elife_article_val, 'abstract': elife_lay_sum_val}
-elife_val_dataset = Dataset.from_dict(elife_val_dataset)
+# # val
+# elife_val_dataset = {'article': sub_elife_article_val, 'abstract': elife_lay_sum_val}
+# elife_val_dataset = Dataset.from_dict(elife_val_dataset)
 
 
 
 ### 8k input
-# section_order = {
-#     'abstract': ['abstract'],
-#     'background': background,
-#     'conclusions': conclusions,
-#     'results': results,
-#     'methods': methods
-# }
+section_order = {
+    'abstract': ['abstract'],
+    'background': background,
+    'conclusions': conclusions,
+    'results': results,
+    'methods': methods
+}
 
-# new_elife_article_train = []
-# new_elife_lay_sum_train = []
-# for lay, article, headings in zip(elife_lay_sum_train, elife_article_train, elife_headings_train):
-#     sections = article.split('\n')
-#     temp_sections = []
-#     sections_dict = {section: '' for section in section_order}
-#     for heading, section in zip(headings, sections):
-#         heading = heading.lower()
-#         for section_name, potential_headings in section_order.items():
-#             if any(potential_heading in heading for potential_heading in potential_headings):
-#                 sections_dict[section_name] += section + '\n'  # Append section content to the corresponding section in the dictionary
-#                 break
-#     for section_name in section_order:
-#         temp_sections.append(sections_dict[section_name])
+new_elife_article_train = []
+new_elife_lay_sum_train = []
+for lay, article, headings in zip(elife_lay_sum_train, elife_article_train, elife_headings_train):
+    sections = article.split('\n')
+    temp_sections = []
+    sections_dict = {section: '' for section in section_order}
+    for heading, section in zip(headings, sections):
+        heading = heading.lower()
+        for i, (section_name, potential_headings) in enumerate(section_order.items()):
+            if any(potential_heading in heading for potential_heading in potential_headings):
+                sections_dict[section_name] += section  # Append section content to the corresponding section in the dictionary
+                break
+            elif i == len(section_order) - 1:
+                sections_dict[section_name] += section
+    for section_name in section_order:
+        temp_sections.append(sections_dict[section_name])
     
-#     final_string = '\n'.join(temp_sections)
-#     if final_string:
-#         new_elife_article_train.append(final_string)
-#         new_elife_lay_sum_train.append(lay)
+    final_string = ''.join(temp_sections)
+    if final_string:
+        new_elife_article_train.append(final_string)
+        new_elife_lay_sum_train.append(lay)
+
+print("length of ordered article and no-ordered article in train dataset")
+print(len(new_elife_article_train[0]))
+print(len(elife_article_train[0]))
 
 # ### val
-# new_elife_article_val = []
-# new_elife_lay_sum_val = []
-# for lay, article, headings in zip(elife_lay_sum_val, elife_article_val, elife_headings_val):
-#     sections = article.split('\n')
-#     temp_sections = []
-#     sections_dict = {section: '' for section in section_order}
-#     for heading, section in zip(headings, sections):
-#         heading = heading.lower()
-#         for section_name, potential_headings in section_order.items():
-#             if any(potential_heading in heading for potential_heading in potential_headings):
-#                 sections_dict[section_name] += section + '\n'  # Append section content to the corresponding section in the dictionary
-#                 break
-#     for section_name in section_order:
-#         temp_sections.append(sections_dict[section_name])
+new_elife_article_val = []
+new_elife_lay_sum_val = []
+for lay, article, headings in zip(elife_lay_sum_val, elife_article_val, elife_headings_val):
+    sections = article.split('\n')
+    temp_sections = []
+    sections_dict = {section: '' for section in section_order}
+    for heading, section in zip(headings, sections):
+        heading = heading.lower()
+        for i, (section_name, potential_headings) in enumerate(section_order.items()):
+            if any(potential_heading in heading for potential_heading in potential_headings):
+                sections_dict[section_name] += section  # Append section content to the corresponding section in the dictionary
+                break
+            elif i == len(section_order) - 1:
+                sections_dict[section_name] += section
+    for section_name in section_order:
+        temp_sections.append(sections_dict[section_name])
     
-#     final_string = '\n'.join(temp_sections)
-#     if final_string:
-#         new_elife_article_val.append(final_string)
-#         new_elife_lay_sum_val.append(lay)
+    final_string = ''.join(temp_sections)
+    if final_string:
+        new_elife_article_val.append(final_string)
+        new_elife_lay_sum_val.append(lay)
 
-# elife_train_dataset = {'article': new_elife_article_train, 'abstract': elife_lay_sum_train}
-# elife_train_dataset = Dataset.from_dict(elife_train_dataset)
+elife_train_dataset = {'article': new_elife_article_train, 'abstract': elife_lay_sum_train}
+elife_train_dataset = Dataset.from_dict(elife_train_dataset)
 
-# # val
-# elife_val_dataset = {'article': new_elife_article_val, 'abstract': elife_lay_sum_val}
-# elife_val_dataset = Dataset.from_dict(elife_val_dataset)
+# val
+elife_val_dataset = {'article': new_elife_article_val, 'abstract': elife_lay_sum_val}
+elife_val_dataset = Dataset.from_dict(elife_val_dataset)
 ### end
 
 
@@ -313,10 +319,10 @@ training_args = Seq2SeqTrainingArguments(
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     fp16=True,
-    output_dir="/ocean/projects/cis230089p/zyou2/BioNLP/4k_led_base_extract_not_clean_0401",
+    output_dir="/ocean/projects/cis230089p/zyou2/BioNLP/8k_led_base",
     logging_steps=5,
     eval_steps=50,
-    save_steps=100,
+    save_steps=50,
     save_total_limit=1,
     gradient_accumulation_steps=4,
     num_train_epochs=1,
